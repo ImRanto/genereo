@@ -3,7 +3,7 @@ export type Language = 'en' | 'fr';
 export const translations = {
   en: {
     // Header & Navigation
-    appTitle: 'QR Generator',
+    appTitle: 'Genereo',
     github: 'GitHub',
     about: 'About',
     themeToggle: 'Toggle theme',
@@ -237,18 +237,18 @@ export const translations = {
 
     // PWA & Banner
     pwaInstallTitle: 'Install App',
-    pwaInstallDesc: 'Install QR Generator on your device for instant offline access.',
+    pwaInstallDesc: 'Install Genereo on your device for instant offline access.',
     pwaInstallBtn: 'Install App',
     pwaDismissBtn: 'Dismiss',
     offlineReadyBadge: 'Works Offline',
 
     // Footer
     footerSub: 'Simple QR code generation, entirely in your browser.',
-    footerCopyright: '© 2026 QR Generator. Made with React & Vite.',
+    footerCopyright: '© 2026 Genereo. Made with React & Vite.',
   },
   fr: {
     // Header & Navigation
-    appTitle: 'QR Generator',
+    appTitle: 'Genereo',
     github: 'GitHub',
     about: 'À propos',
     themeToggle: 'Changer le thème',
@@ -482,14 +482,14 @@ export const translations = {
 
     // PWA & Banner
     pwaInstallTitle: 'Installer l\'application',
-    pwaInstallDesc: 'Installez QR Generator sur votre appareil pour un accès instantané même hors ligne.',
+    pwaInstallDesc: 'Installez Genereo sur votre appareil pour un accès instantané même hors ligne.',
     pwaInstallBtn: 'Installer',
     pwaDismissBtn: 'Ignorer',
     offlineReadyBadge: 'Fonctionne Hors Ligne',
 
     // Footer
     footerSub: 'Génération simple de QR codes, entièrement dans votre navigateur.',
-    footerCopyright: '© 2026 QR Generator. Fait avec React & Vite.',
+    footerCopyright: '© 2026 Genereo. Fait avec React & Vite.',
   },
 };
 
