@@ -20,6 +20,7 @@ export type ModuleStyle = 'square' | 'rounded' | 'dots';
 export type EyeStyle = 'square' | 'rounded' | 'circle';
 export type ErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
 export type GradientType = 'none' | 'linear' | 'radial';
+export type LogoBorderRadius = 'square' | 'rounded' | 'circle';
 
 export interface QRDesignOptions {
   fgColor: string;
@@ -38,6 +39,7 @@ export interface QRDesignOptions {
   logoPadding?: number;
   logoHasBg?: boolean;
   logoBgColor?: string;
+  logoBorderRadius?: LogoBorderRadius;
 }
 
 interface QRCustomizationProps {
@@ -500,8 +502,8 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
         </div>
       </div>
 
-      {/* Custom Eye Color & EC Level */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+      {/* Custom Eye Color & EC Level & Quiet Zone Margin */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800/60">
         {/* Custom Eye Color Toggle */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -564,6 +566,31 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
             })}
           </div>
         </div>
+
+        {/* Quiet Zone Margin Slider */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center text-xs font-medium text-slate-600 dark:text-slate-400">
+            <label htmlFor="margin-slider">{t('marginLabel')}</label>
+            <span className="font-mono font-semibold text-slate-900 dark:text-white">
+              {designOptions.margin}
+            </span>
+          </div>
+          <input
+            id="margin-slider"
+            type="range"
+            min="0"
+            max="6"
+            step="1"
+            value={designOptions.margin}
+            onChange={(e) =>
+              setDesignOptions((prev) => ({
+                ...prev,
+                margin: parseInt(e.target.value, 10),
+              }))
+            }
+            className="w-full accent-slate-900 dark:accent-white cursor-pointer mt-1"
+          />
+        </div>
       </div>
 
       {/* Logo Section */}
@@ -622,6 +649,7 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
         logoPadding: prev.logoPadding ?? 2,
         logoHasBg: prev.logoHasBg ?? true,
         logoBgColor: prev.logoBgColor || '#FFFFFF',
+        logoBorderRadius: prev.logoBorderRadius || 'rounded',
         // Automatically switch to 'H' when uploading logo
         errorCorrectionLevel:
           prev.errorCorrectionLevel === 'L' || prev.errorCorrectionLevel === 'M'
@@ -801,34 +829,73 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
             </div>
           </div>
 
-          {/* Logo Background Settings */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-            <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={logoHasBg}
-                onChange={(e) =>
-                  setDesignOptions((prev) => ({ ...prev, logoHasBg: e.target.checked }))
-                }
-                className="rounded text-slate-900 dark:text-white"
-              />
-              <span>{t('logoBgLabel')}</span>
-            </label>
+          {/* Logo Background Settings & Border Shape */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 items-center">
+            <div className="flex items-center justify-between">
+              <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={logoHasBg}
+                  onChange={(e) =>
+                    setDesignOptions((prev) => ({ ...prev, logoHasBg: e.target.checked }))
+                  }
+                  className="rounded text-slate-900 dark:text-white"
+                />
+                <span>{t('logoBgLabel')}</span>
+              </label>
+
+              {logoHasBg && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={logoBgColor}
+                    onChange={(e) =>
+                      setDesignOptions((prev) => ({ ...prev, logoBgColor: e.target.value }))
+                    }
+                    aria-label={t('logoBgColorLabel')}
+                    className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer bg-transparent"
+                  />
+                  <span className="text-[11px] font-mono text-slate-500 uppercase">
+                    {logoBgColor}
+                  </span>
+                </div>
+              )}
+            </div>
 
             {logoHasBg && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={logoBgColor}
-                  onChange={(e) =>
-                    setDesignOptions((prev) => ({ ...prev, logoBgColor: e.target.value }))
-                  }
-                  aria-label={t('logoBgColorLabel')}
-                  className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer bg-transparent"
-                />
-                <span className="text-[11px] font-mono text-slate-500 uppercase">
-                  {logoBgColor}
-                </span>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                  {t('logoBorderShapeLabel')}
+                </label>
+                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80">
+                  {(['square', 'rounded', 'circle'] as LogoBorderRadius[]).map((shape) => {
+                    const labelKey: TranslationKeys =
+                      shape === 'square'
+                        ? 'shapeSquare'
+                        : shape === 'rounded'
+                        ? 'shapeRounded'
+                        : 'shapeCircle';
+                    const currentShape = designOptions.logoBorderRadius || 'rounded';
+                    const isSelected = currentShape === shape;
+                    return (
+                      <button
+                        key={shape}
+                        type="button"
+                        onClick={() =>
+                          setDesignOptions((prev) => ({ ...prev, logoBorderRadius: shape }))
+                        }
+                        aria-pressed={isSelected}
+                        className={`py-1 text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {t(labelKey)}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

@@ -67,6 +67,33 @@ describe('qrCustomRenderer logo calculation utils', () => {
       expect(res280.paddingPx / 280).toBeCloseTo(res1024.paddingPx / 1024, 5);
     });
 
+    it('computes correct cornerRadius based on logoBorderRadius option', () => {
+      const squareRes = computeLogoRect(
+        280,
+        { logoSize: 20, logoBorderRadius: 'square', errorCorrectionLevel: 'H' },
+        29,
+        2
+      );
+      expect(squareRes.cornerRadius).toBe(0);
+
+      const roundedRes = computeLogoRect(
+        280,
+        { logoSize: 20, logoBorderRadius: 'rounded', errorCorrectionLevel: 'H' },
+        29,
+        2
+      );
+      expect(roundedRes.cornerRadius).toBeGreaterThan(0);
+      expect(roundedRes.cornerRadius).toBeLessThan(Math.min(roundedRes.clearedW, roundedRes.clearedH) / 2);
+
+      const circleRes = computeLogoRect(
+        280,
+        { logoSize: 20, logoBorderRadius: 'circle', errorCorrectionLevel: 'H' },
+        29,
+        2
+      );
+      expect(circleRes.cornerRadius).toBeCloseTo(Math.min(circleRes.clearedW, circleRes.clearedH) / 2, 1);
+    });
+
     it('aligns cleared zone to integer module boundaries and protects finder patterns', () => {
       const matrixSize = 29;
       const margin = 2;

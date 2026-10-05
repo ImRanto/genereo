@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import type { QRDesignOptions, ErrorCorrectionLevel } from '../components/QRCustomization';
+import type { QRDesignOptions, ErrorCorrectionLevel, LogoBorderRadius } from '../components/QRCustomization';
 
 export interface RenderQROptions extends QRDesignOptions {
   width?: number;
@@ -9,6 +9,7 @@ export interface ComputeLogoRectOptions {
   logoSize?: number;
   logoPadding?: number;
   logoHasBg?: boolean;
+  logoBorderRadius?: LogoBorderRadius;
   errorCorrectionLevel?: ErrorCorrectionLevel;
 }
 
@@ -31,6 +32,7 @@ export interface LogoRectResult {
   clearedY: number;
   clearedW: number;
   clearedH: number;
+  cornerRadius: number;
 }
 
 export function isEyeModule(row: number, col: number, matrixSize: number): boolean {
@@ -128,6 +130,16 @@ export function computeLogoRect(
   const clearedW = (clearedMaxCol - clearedMinCol + 1) * cellSize;
   const clearedH = (clearedMaxRow - clearedMinRow + 1) * cellSize;
 
+  const borderRadiusType = options.logoBorderRadius || 'rounded';
+  let cornerRadius = 0;
+  if (borderRadiusType === 'circle') {
+    cornerRadius = Math.min(clearedW, clearedH) / 2;
+  } else if (borderRadiusType === 'rounded') {
+    cornerRadius = Math.min(6, Math.min(clearedW, clearedH) * 0.15);
+  } else {
+    cornerRadius = 0;
+  }
+
   return {
     effectiveLogoPercent,
     logoW,
@@ -147,6 +159,7 @@ export function computeLogoRect(
     clearedY,
     clearedW,
     clearedH,
+    cornerRadius,
   };
 }
 
@@ -351,16 +364,22 @@ export async function drawCustomQRToCanvas(
       }
 
       if (hasBg) {
-        const cornerRadius = Math.min(6, Math.min(logoRect.clearedW, logoRect.clearedH) * 0.15);
         ctx.fillStyle = options.logoBgColor || '#FFFFFF';
         ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
+
+        if (logoRect.cornerRadius >= Math.min(logoRect.clearedW, logoRect.clearedH) / 2) {
+          // Circle
+          const cx = logoRect.clearedX + logoRect.clearedW / 2;
+          const cy = logoRect.clearedY + logoRect.clearedH / 2;
+          const r = Math.min(logoRect.clearedW, logoRect.clearedH) / 2;
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        } else if (logoRect.cornerRadius > 0 && typeof ctx.roundRect === 'function') {
           ctx.roundRect(
             logoRect.clearedX,
             logoRect.clearedY,
             logoRect.clearedW,
             logoRect.clearedH,
-            cornerRadius
+            logoRect.cornerRadius
           );
         } else {
           ctx.rect(
@@ -526,9 +545,15 @@ export async function generateCustomQRSVG(
   let logoSVG = '';
   if (options.logoUrl && logoRect) {
     if (hasBg) {
-      const cornerRadius = Math.min(6, Math.min(logoRect.clearedW, logoRect.clearedH) * 0.15);
       const bgFill = options.logoBgColor || '#FFFFFF';
-      logoSVG += `<rect x="${logoRect.clearedX}" y="${logoRect.clearedY}" width="${logoRect.clearedW}" height="${logoRect.clearedH}" rx="${cornerRadius}" fill="${bgFill}" />`;
+      if (logoRect.cornerRadius >= Math.min(logoRect.clearedW, logoRect.clearedH) / 2) {
+        const cx = logoRect.clearedX + logoRect.clearedW / 2;
+        const cy = logoRect.clearedY + logoRect.clearedH / 2;
+        const r = Math.min(logoRect.clearedW, logoRect.clearedH) / 2;
+        logoSVG += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bgFill}" />`;
+      } else {
+        logoSVG += `<rect x="${logoRect.clearedX}" y="${logoRect.clearedY}" width="${logoRect.clearedW}" height="${logoRect.clearedH}" rx="${logoRect.cornerRadius}" fill="${bgFill}" />`;
+      }
     }
 
     const safeHref = escapeXml(options.logoUrl);
