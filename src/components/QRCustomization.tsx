@@ -1,5 +1,17 @@
 import React, { useState, useRef } from 'react';
-import { Palette, RefreshCw, LayoutTemplate, Eye, Shapes, ShieldAlert, Image as ImageIcon, Upload, Trash2, AlertTriangle, Check } from 'lucide-react';
+import {
+  Palette,
+  RefreshCw,
+  LayoutTemplate,
+  Eye,
+  Shapes,
+  ShieldAlert,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  AlertTriangle,
+  Check,
+} from 'lucide-react';
 import { useTranslation } from '../i18n/useTranslation';
 import type { TranslationKeys } from '../i18n/translations';
 
@@ -48,6 +60,55 @@ const PRESET_COLORS = [
   '#DC2626', // Red
 ];
 
+function processAndResizeLogo(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) {
+        reject(new Error('Empty result from FileReader'));
+        return;
+      }
+
+      const img = new Image();
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.onload = () => {
+        const MAX_DIM = 512;
+        let w = img.width;
+        let h = img.height;
+
+        if (w <= MAX_DIM && h <= MAX_DIM) {
+          resolve(dataUrl);
+          return;
+        }
+
+        if (w > h) {
+          h = Math.round((h * MAX_DIM) / w);
+          w = MAX_DIM;
+        } else {
+          w = Math.round((w * MAX_DIM) / h);
+          h = MAX_DIM;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export const QRCustomization: React.FC<QRCustomizationProps> = ({
   fgColor,
   setFgColor,
@@ -68,7 +129,8 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
       apply: () => {
         setFgColor('#0F172A');
         setBgColor('#FFFFFF');
-        setDesignOptions({
+        setDesignOptions((prev) => ({
+          ...prev,
           fgColor: '#0F172A',
           bgColor: '#FFFFFF',
           transparentBg: false,
@@ -80,7 +142,7 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
           margin: 2,
           gradientType: 'none',
           gradientColor: '#2563EB',
-        });
+        }));
       },
     },
     {
@@ -89,7 +151,8 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
       apply: () => {
         setFgColor('#1E3A8A');
         setBgColor('#F8FAFC');
-        setDesignOptions({
+        setDesignOptions((prev) => ({
+          ...prev,
           fgColor: '#1E3A8A',
           bgColor: '#F8FAFC',
           transparentBg: false,
@@ -101,7 +164,7 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
           margin: 2,
           gradientType: 'linear',
           gradientColor: '#0284C7',
-        });
+        }));
       },
     },
     {
@@ -110,7 +173,8 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
       apply: () => {
         setFgColor('#78350F');
         setBgColor('#FEF3C7');
-        setDesignOptions({
+        setDesignOptions((prev) => ({
+          ...prev,
           fgColor: '#78350F',
           bgColor: '#FEF3C7',
           transparentBg: false,
@@ -122,7 +186,7 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
           margin: 2,
           gradientType: 'none',
           gradientColor: '#B45309',
-        });
+        }));
       },
     },
     {
@@ -131,7 +195,8 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
       apply: () => {
         setFgColor('#065F46');
         setBgColor('#ECFDF5');
-        setDesignOptions({
+        setDesignOptions((prev) => ({
+          ...prev,
           fgColor: '#065F46',
           bgColor: '#ECFDF5',
           transparentBg: false,
@@ -143,7 +208,7 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
           margin: 2,
           gradientType: 'linear',
           gradientColor: '#10B981',
-        });
+        }));
       },
     },
     {
@@ -152,7 +217,8 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
       apply: () => {
         setFgColor('#5B21B6');
         setBgColor('#FAF5FF');
-        setDesignOptions({
+        setDesignOptions((prev) => ({
+          ...prev,
           fgColor: '#5B21B6',
           bgColor: '#FAF5FF',
           transparentBg: false,
@@ -164,7 +230,7 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
           margin: 2,
           gradientType: 'linear',
           gradientColor: '#E11D48',
-        });
+        }));
       },
     },
   ];
@@ -293,7 +359,8 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
           </label>
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800/80 p-1 border border-slate-200/80 dark:border-slate-700/80">
             {(['Small', 'Medium', 'Large'] as QRSize[]).map((s) => {
-              const labelKey: TranslationKeys = s === 'Small' ? 'sizeSmall' : s === 'Medium' ? 'sizeMedium' : 'sizeLarge';
+              const labelKey: TranslationKeys =
+                s === 'Small' ? 'sizeSmall' : s === 'Medium' ? 'sizeMedium' : 'sizeLarge';
               return (
                 <button
                   key={s}
@@ -323,7 +390,11 @@ export const QRCustomization: React.FC<QRCustomizationProps> = ({
           <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80">
             {(['none', 'linear', 'radial'] as GradientType[]).map((gt) => {
               const labelKey: TranslationKeys =
-                gt === 'none' ? 'gradientTypeNone' : gt === 'linear' ? 'gradientTypeLinear' : 'gradientTypeRadial';
+                gt === 'none'
+                  ? 'gradientTypeNone'
+                  : gt === 'linear'
+                  ? 'gradientTypeLinear'
+                  : 'gradientTypeRadial';
               const isSelected = designOptions.gradientType === gt;
               return (
                 <button
@@ -513,9 +584,24 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
   const [logoError, setLogoError] = useState<string | null>(null);
 
   const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+  const VALID_MIME_TYPES = [
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/webp',
+    'image/svg+xml',
+  ];
 
-  const handleFileChange = (file: File) => {
-    if (!file || !file.type.startsWith('image/')) return;
+  const handleFileChange = async (file: File) => {
+    if (!file) return;
+
+    if (!VALID_MIME_TYPES.includes(file.type)) {
+      setLogoError(t('logoInvalidType'));
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
 
     if (file.size > MAX_LOGO_SIZE_BYTES) {
       setLogoError(t('logoFileTooLarge'));
@@ -527,26 +613,25 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
 
     setLogoError(null);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      if (dataUrl) {
-        setDesignOptions((prev) => ({
-          ...prev,
-          logoUrl: dataUrl,
-          logoSize: prev.logoSize || 20,
-          logoPadding: prev.logoPadding ?? 4,
-          logoHasBg: prev.logoHasBg ?? true,
-          logoBgColor: prev.logoBgColor || '#FFFFFF',
-          // Automatically switch/recommend EC Level to 'H' when uploading logo
-          errorCorrectionLevel:
-            prev.errorCorrectionLevel === 'L' || prev.errorCorrectionLevel === 'M'
-              ? 'H'
-              : prev.errorCorrectionLevel,
-        }));
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const resizedDataUrl = await processAndResizeLogo(file);
+      setDesignOptions((prev) => ({
+        ...prev,
+        logoUrl: resizedDataUrl,
+        logoSize: prev.logoSize || 20,
+        logoPadding: prev.logoPadding ?? 2,
+        logoHasBg: prev.logoHasBg ?? true,
+        logoBgColor: prev.logoBgColor || '#FFFFFF',
+        // Automatically switch to 'H' when uploading logo
+        errorCorrectionLevel:
+          prev.errorCorrectionLevel === 'L' || prev.errorCorrectionLevel === 'M'
+            ? 'H'
+            : prev.errorCorrectionLevel,
+      }));
+    } catch (err) {
+      console.error('Failed to process uploaded logo:', err);
+      setLogoError(t('logoInvalidType'));
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -575,11 +660,12 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
   };
 
   const currentLogoSize = designOptions.logoSize ?? 20;
-  const currentLogoPadding = designOptions.logoPadding ?? 4;
+  const currentLogoPadding = designOptions.logoPadding ?? 2;
   const logoHasBg = designOptions.logoHasBg !== false;
   const logoBgColor = designOptions.logoBgColor || '#FFFFFF';
 
-  const isEcLow = designOptions.errorCorrectionLevel === 'L' || designOptions.errorCorrectionLevel === 'M';
+  const isEcLow =
+    designOptions.errorCorrectionLevel === 'L' || designOptions.errorCorrectionLevel === 'M';
   const isLogoLarge = currentLogoSize >= 25;
 
   return (
@@ -621,7 +707,7 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
             onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
             className="hidden"
           />
@@ -644,10 +730,10 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  Logo actif
+                  {t('logoActive')}
                 </p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {currentLogoSize}% de la taille QR
+                  {currentLogoSize}% {t('logoPercentOfQr')}
                 </p>
               </div>
             </div>
@@ -662,7 +748,7 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
             </button>
           </div>
 
-          {/* Controls: Size & Padding */}
+          {/* Controls: Size & Relative Padding */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
             {/* Logo Size Slider (Capped max 30% for safety) */}
             <div className="space-y-1.5">
@@ -689,25 +775,25 @@ const LogoSection: React.FC<LogoSectionProps> = ({ designOptions, setDesignOptio
               />
             </div>
 
-            {/* Logo Padding Slider */}
+            {/* Logo Relative Padding Slider */}
             <div className="space-y-1.5">
               <div className="flex justify-between items-center text-xs font-medium text-slate-600 dark:text-slate-400">
                 <label htmlFor="logo-padding-slider">{t('logoPaddingLabel')}</label>
                 <span className="font-mono font-semibold text-slate-900 dark:text-white">
-                  {currentLogoPadding}px
+                  {currentLogoPadding}%
                 </span>
               </div>
               <input
                 id="logo-padding-slider"
                 type="range"
                 min="0"
-                max="16"
-                step="1"
+                max="6"
+                step="0.5"
                 value={currentLogoPadding}
                 onChange={(e) =>
                   setDesignOptions((prev) => ({
                     ...prev,
-                    logoPadding: parseInt(e.target.value, 10),
+                    logoPadding: parseFloat(e.target.value),
                   }))
                 }
                 className="w-full accent-slate-900 dark:accent-white cursor-pointer"

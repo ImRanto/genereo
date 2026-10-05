@@ -62,6 +62,11 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
       margin: designOptions?.margin ?? 2,
       gradientType: designOptions?.gradientType || 'none',
       gradientColor: designOptions?.gradientColor || '#2563EB',
+      logoUrl: designOptions?.logoUrl,
+      logoSize: designOptions?.logoSize,
+      logoPadding: designOptions?.logoPadding,
+      logoHasBg: designOptions?.logoHasBg,
+      logoBgColor: designOptions?.logoBgColor,
       width: numericSize,
     })
       .then(() => setGenError(null))

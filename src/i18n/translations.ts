@@ -172,8 +172,11 @@ export const translations = {
     // Logo & Safety
     logoTitle: 'Logo / Image',
     logoFileTooLarge: 'The logo file exceeds 2 MB. Please choose a smaller image.',
+    logoInvalidType: 'Invalid file type. Please upload a PNG, JPG, WebP, or SVG image.',
     logoUploadDrag: 'Drag & drop image here or click to browse',
     logoUploadBtn: 'Upload Logo',
+    logoActive: 'Active logo',
+    logoPercentOfQr: 'of QR size',
     removeLogo: 'Remove Logo',
     logoSizeLabel: 'Logo Size',
     logoPaddingLabel: 'Logo Padding',
@@ -417,8 +420,11 @@ export const translations = {
     // Logo & Safety
     logoTitle: 'Logo / Image',
     logoFileTooLarge: 'Le fichier logo dépasse 2 Mo. Merci de choisir une image plus légère.',
+    logoInvalidType: 'Format de fichier invalide. Veuillez importer une image PNG, JPG, WebP ou SVG.',
     logoUploadDrag: 'Glissez-déposez une image ici ou cliquez pour parcourir',
     logoUploadBtn: 'Ajouter un logo',
+    logoActive: 'Logo actif',
+    logoPercentOfQr: 'de la taille QR',
     removeLogo: 'Supprimer le logo',
     logoSizeLabel: 'Taille du logo',
     logoPaddingLabel: 'Padding du logo',

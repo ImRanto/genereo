@@ -1,8 +1,36 @@
 import QRCode from 'qrcode';
-import type { QRDesignOptions } from '../components/QRCustomization';
+import type { QRDesignOptions, ErrorCorrectionLevel } from '../components/QRCustomization';
 
 export interface RenderQROptions extends QRDesignOptions {
   width?: number;
+}
+
+export interface ComputeLogoRectOptions {
+  logoSize?: number;
+  logoPadding?: number;
+  logoHasBg?: boolean;
+  errorCorrectionLevel?: ErrorCorrectionLevel;
+}
+
+export interface LogoRectResult {
+  effectiveLogoPercent: number;
+  logoW: number;
+  logoH: number;
+  logoX: number;
+  logoY: number;
+  bgX: number;
+  bgY: number;
+  bgW: number;
+  bgH: number;
+  paddingPx: number;
+  clearedMinRow: number;
+  clearedMaxRow: number;
+  clearedMinCol: number;
+  clearedMaxCol: number;
+  clearedX: number;
+  clearedY: number;
+  clearedW: number;
+  clearedH: number;
 }
 
 export function isEyeModule(row: number, col: number, matrixSize: number): boolean {
@@ -12,14 +40,143 @@ export function isEyeModule(row: number, col: number, matrixSize: number): boole
   return false;
 }
 
+export function getEccMaxLogoPercent(ecc: ErrorCorrectionLevel = 'M'): number {
+  switch (ecc) {
+    case 'L':
+      return 7;
+    case 'M':
+      return 15;
+    case 'Q':
+      return 25;
+    case 'H':
+      return 30;
+    default:
+      return 15;
+  }
+}
+
+export function computeLogoRect(
+  canvasWidth: number,
+  options: ComputeLogoRectOptions,
+  matrixSize: number,
+  margin: number,
+  imgWidth?: number,
+  imgHeight?: number
+): LogoRectResult {
+  const ecc = options.errorCorrectionLevel || 'M';
+  const requestedPercent = options.logoSize ?? 20;
+  const maxPercent = getEccMaxLogoPercent(ecc);
+  const effectiveLogoPercent = Math.min(Math.max(requestedPercent, 10), maxPercent);
+
+  const rawLogoSize = canvasWidth * (effectiveLogoPercent / 100);
+
+  let logoW = rawLogoSize;
+  let logoH = rawLogoSize;
+
+  if (imgWidth && imgHeight && imgWidth > 0 && imgHeight > 0) {
+    if (imgWidth > imgHeight) {
+      logoH = rawLogoSize * (imgHeight / imgWidth);
+    } else {
+      logoW = rawLogoSize * (imgWidth / imgHeight);
+    }
+  }
+
+  const logoX = (canvasWidth - logoW) / 2;
+  const logoY = (canvasWidth - logoH) / 2;
+
+  // logoPadding as relative percentage of total canvas width
+  // Default logoPadding = 2 (%)
+  const paddingPercent = options.logoPadding ?? 2;
+  const paddingPx = canvasWidth * (paddingPercent / 100);
+
+  const bgX = logoX - paddingPx;
+  const bgY = logoY - paddingPx;
+  const bgW = logoW + paddingPx * 2;
+  const bgH = logoH + paddingPx * 2;
+
+  // Matrix cell grid alignment
+  const totalModules = matrixSize + margin * 2;
+  const cellSize = canvasWidth / totalModules;
+
+  let clearedMinCol = Math.floor(bgX / cellSize - margin);
+  let clearedMaxCol = Math.ceil((bgX + bgW) / cellSize - margin) - 1;
+  let clearedMinRow = Math.floor(bgY / cellSize - margin);
+  let clearedMaxRow = Math.ceil((bgY + bgH) / cellSize - margin) - 1;
+
+  // Clamp to matrix size
+  clearedMinCol = Math.max(0, Math.min(clearedMinCol, matrixSize - 1));
+  clearedMaxCol = Math.max(0, Math.min(clearedMaxCol, matrixSize - 1));
+  clearedMinRow = Math.max(0, Math.min(clearedMinRow, matrixSize - 1));
+  clearedMaxRow = Math.max(0, Math.min(clearedMaxRow, matrixSize - 1));
+
+  // Ensure finder patterns (eyes) are never covered by cleared zone
+  if (clearedMinRow < 7 && clearedMinCol < 7) {
+    clearedMinRow = Math.max(clearedMinRow, 7);
+    clearedMinCol = Math.max(clearedMinCol, 7);
+  }
+  if (clearedMinRow < 7 && clearedMaxCol >= matrixSize - 7) {
+    clearedMinRow = Math.max(clearedMinRow, 7);
+    clearedMaxCol = Math.min(clearedMaxCol, matrixSize - 8);
+  }
+  if (clearedMaxRow >= matrixSize - 7 && clearedMinCol < 7) {
+    clearedMaxRow = Math.min(clearedMaxRow, matrixSize - 8);
+    clearedMinCol = Math.max(clearedMinCol, 7);
+  }
+
+  const clearedX = (clearedMinCol + margin) * cellSize;
+  const clearedY = (clearedMinRow + margin) * cellSize;
+  const clearedW = (clearedMaxCol - clearedMinCol + 1) * cellSize;
+  const clearedH = (clearedMaxRow - clearedMinRow + 1) * cellSize;
+
+  return {
+    effectiveLogoPercent,
+    logoW,
+    logoH,
+    logoX,
+    logoY,
+    bgX,
+    bgY,
+    bgW,
+    bgH,
+    paddingPx,
+    clearedMinRow,
+    clearedMaxRow,
+    clearedMinCol,
+    clearedMaxCol,
+    clearedX,
+    clearedY,
+    clearedW,
+    clearedH,
+  };
+}
+
+const logoImageCache = new Map<string, HTMLImageElement>();
+
 function loadLogoImage(url: string): Promise<HTMLImageElement> {
+  if (logoImageCache.has(url)) {
+    return Promise.resolve(logoImageCache.get(url)!);
+  }
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      img.crossOrigin = 'anonymous';
+    }
+    img.onload = () => {
+      logoImageCache.set(url, img);
+      resolve(img);
+    };
     img.onerror = (err) => reject(err);
     img.src = url;
   });
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 /**
@@ -71,9 +228,8 @@ export async function drawCustomQRToCanvas(
     fgFillStyle = grad;
   }
 
-  const eyeFillStyle = (options.useCustomEyeColor && options.eyeColor)
-    ? options.eyeColor
-    : fgFillStyle;
+  const eyeFillStyle =
+    options.useCustomEyeColor && options.eyeColor ? options.eyeColor : fgFillStyle;
 
   // Helper to draw eye (finder pattern) at specified top-left matrix position (r, c)
   const drawEyeAt = (startRow: number, startCol: number) => {
@@ -123,6 +279,29 @@ export async function drawCustomQRToCanvas(
   drawEyeAt(0, matrixSize - 7);
   drawEyeAt(matrixSize - 7, 0);
 
+  // Calculate logo rect if logoUrl is provided
+  let logoRect: LogoRectResult | null = null;
+  let logoImage: HTMLImageElement | null = null;
+
+  if (options.logoUrl) {
+    try {
+      logoImage = await loadLogoImage(options.logoUrl);
+      logoRect = computeLogoRect(
+        canvasWidth,
+        options,
+        matrixSize,
+        margin,
+        logoImage.width,
+        logoImage.height
+      );
+    } catch (e) {
+      console.warn('Failed to pre-load logo image:', e);
+      logoRect = computeLogoRect(canvasWidth, options, matrixSize, margin);
+    }
+  }
+
+  const hasBg = options.logoHasBg !== false;
+
   // 4. Draw Data Modules (non-eye cells)
   ctx.fillStyle = fgFillStyle;
 
@@ -130,6 +309,18 @@ export async function drawCustomQRToCanvas(
     for (let c = 0; c < matrixSize; c++) {
       if (isEyeModule(r, c, matrixSize)) {
         continue; // Skip eyes, already drawn
+      }
+
+      // If logo is present and background is enabled, skip modules in cleared grid area
+      if (
+        logoRect &&
+        hasBg &&
+        r >= logoRect.clearedMinRow &&
+        r <= logoRect.clearedMaxRow &&
+        c >= logoRect.clearedMinCol &&
+        c <= logoRect.clearedMaxCol
+      ) {
+        continue;
       }
 
       const isDark = qr.modules.get(r, c);
@@ -153,46 +344,42 @@ export async function drawCustomQRToCanvas(
   }
 
   // 5. Draw Logo if present
-  if (options.logoUrl) {
+  if (options.logoUrl && logoRect) {
     try {
-      const img = await loadLogoImage(options.logoUrl);
-      const logoPercent = Math.min(Math.max(options.logoSize ?? 20, 10), 30);
-      const rawLogoSize = canvasWidth * (logoPercent / 100);
-
-      let logoW = rawLogoSize;
-      let logoH = rawLogoSize;
-      if (img.width && img.height) {
-        if (img.width > img.height) {
-          logoH = rawLogoSize * (img.height / img.width);
-        } else {
-          logoW = rawLogoSize * (img.width / img.height);
-        }
+      if (!logoImage) {
+        logoImage = await loadLogoImage(options.logoUrl);
       }
 
-      const logoX = (canvasWidth - logoW) / 2;
-      const logoY = (canvasWidth - logoH) / 2;
-
-      const padding = options.logoPadding ?? 4;
-      const hasBg = options.logoHasBg !== false;
-
       if (hasBg) {
-        const bgX = logoX - padding;
-        const bgY = logoY - padding;
-        const bgW = logoW + padding * 2;
-        const bgH = logoH + padding * 2;
-        const cornerRadius = Math.min(6, Math.min(bgW, bgH) * 0.2);
-
+        const cornerRadius = Math.min(6, Math.min(logoRect.clearedW, logoRect.clearedH) * 0.15);
         ctx.fillStyle = options.logoBgColor || '#FFFFFF';
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(bgX, bgY, bgW, bgH, cornerRadius);
+          ctx.roundRect(
+            logoRect.clearedX,
+            logoRect.clearedY,
+            logoRect.clearedW,
+            logoRect.clearedH,
+            cornerRadius
+          );
         } else {
-          ctx.rect(bgX, bgY, bgW, bgH);
+          ctx.rect(
+            logoRect.clearedX,
+            logoRect.clearedY,
+            logoRect.clearedW,
+            logoRect.clearedH
+          );
         }
         ctx.fill();
       }
 
-      ctx.drawImage(img, logoX, logoY, logoW, logoH);
+      ctx.drawImage(
+        logoImage,
+        logoRect.logoX,
+        logoRect.logoY,
+        logoRect.logoW,
+        logoRect.logoH
+      );
     } catch (e) {
       console.warn('Failed to draw logo on canvas:', e);
     }
@@ -241,9 +428,8 @@ export async function generateCustomQRSVG(
     fgFillAttr = 'url(#qrGrad)';
   }
 
-  const eyeFillAttr = (options.useCustomEyeColor && options.eyeColor)
-    ? options.eyeColor
-    : fgFillAttr;
+  const eyeFillAttr =
+    options.useCustomEyeColor && options.eyeColor ? options.eyeColor : fgFillAttr;
 
   let bgRect = '';
   if (!options.transparentBg) {
@@ -263,7 +449,7 @@ export async function generateCustomQRSVG(
       const cy = y + eyeSize / 2;
       return `
         <circle cx="${cx}" cy="${cy}" r="${eyeSize / 2}" fill="${eyeFillAttr}" />
-        <circle cx="${cx}" cy="${cy}" r="${eyeSize / 2 - cellSize}" fill="${options.transparentBg ? 'transparent' : (options.bgColor || '#FFFFFF')}" />
+        <circle cx="${cx}" cy="${cy}" r="${eyeSize / 2 - cellSize}" fill="${options.transparentBg ? 'transparent' : options.bgColor || '#FFFFFF'}" />
         <circle cx="${cx}" cy="${cy}" r="${1.5 * cellSize}" fill="${eyeFillAttr}" />
       `;
     } else if (options.eyeStyle === 'rounded') {
@@ -271,13 +457,13 @@ export async function generateCustomQRSVG(
       const rInner = cellSize * 1;
       return `
         <rect x="${x}" y="${y}" width="${eyeSize}" height="${eyeSize}" rx="${rOuter}" fill="${eyeFillAttr}" />
-        <rect x="${x + cellSize}" y="${y + cellSize}" width="${5 * cellSize}" height="${5 * cellSize}" rx="${rOuter * 0.7}" fill="${options.transparentBg ? 'transparent' : (options.bgColor || '#FFFFFF')}" />
+        <rect x="${x + cellSize}" y="${y + cellSize}" width="${5 * cellSize}" height="${5 * cellSize}" rx="${rOuter * 0.7}" fill="${options.transparentBg ? 'transparent' : options.bgColor || '#FFFFFF'}" />
         <rect x="${x + 2 * cellSize}" y="${y + 2 * cellSize}" width="${3 * cellSize}" height="${3 * cellSize}" rx="${rInner}" fill="${eyeFillAttr}" />
       `;
     } else {
       return `
         <rect x="${x}" y="${y}" width="${eyeSize}" height="${eyeSize}" fill="${eyeFillAttr}" />
-        <rect x="${x + cellSize}" y="${y + cellSize}" width="${5 * cellSize}" height="${5 * cellSize}" fill="${options.transparentBg ? 'transparent' : (options.bgColor || '#FFFFFF')}" />
+        <rect x="${x + cellSize}" y="${y + cellSize}" width="${5 * cellSize}" height="${5 * cellSize}" fill="${options.transparentBg ? 'transparent' : options.bgColor || '#FFFFFF'}" />
         <rect x="${x + 2 * cellSize}" y="${y + 2 * cellSize}" width="${3 * cellSize}" height="${3 * cellSize}" fill="${eyeFillAttr}" />
       `;
     }
@@ -287,11 +473,37 @@ export async function generateCustomQRSVG(
   paths += makeEyeSVG(0, matrixSize - 7);
   paths += makeEyeSVG(matrixSize - 7, 0);
 
+  // Pre-load logo if present to get aspect ratio
+  let logoRect: LogoRectResult | null = null;
+  if (options.logoUrl) {
+    try {
+      const img = await loadLogoImage(options.logoUrl);
+      logoRect = computeLogoRect(sizePx, options, matrixSize, margin, img.width, img.height);
+    } catch (e) {
+      console.warn('Failed to pre-load logo image for SVG:', e);
+      logoRect = computeLogoRect(sizePx, options, matrixSize, margin);
+    }
+  }
+
+  const hasBg = options.logoHasBg !== false;
+
   // Modules SVG
   let moduleElements = '';
   for (let r = 0; r < matrixSize; r++) {
     for (let c = 0; c < matrixSize; c++) {
       if (isEyeModule(r, c, matrixSize)) continue;
+
+      if (
+        logoRect &&
+        hasBg &&
+        r >= logoRect.clearedMinRow &&
+        r <= logoRect.clearedMaxRow &&
+        c >= logoRect.clearedMinCol &&
+        c <= logoRect.clearedMaxCol
+      ) {
+        continue;
+      }
+
       if (!qr.modules.get(r, c)) continue;
 
       const x = (c + margin) * cellSize;
@@ -312,24 +524,15 @@ export async function generateCustomQRSVG(
   }
 
   let logoSVG = '';
-  if (options.logoUrl) {
-    const logoPercent = Math.min(Math.max(options.logoSize ?? 20, 10), 30);
-    const logoPx = sizePx * (logoPercent / 100);
-    const logoX = (sizePx - logoPx) / 2;
-    const logoY = (sizePx - logoPx) / 2;
-    const padding = options.logoPadding ?? 4;
-    const hasBg = options.logoHasBg !== false;
-
+  if (options.logoUrl && logoRect) {
     if (hasBg) {
-      const bgX = logoX - padding;
-      const bgY = logoY - padding;
-      const bgW = logoPx + padding * 2;
-      const bgH = logoPx + padding * 2;
+      const cornerRadius = Math.min(6, Math.min(logoRect.clearedW, logoRect.clearedH) * 0.15);
       const bgFill = options.logoBgColor || '#FFFFFF';
-      logoSVG += `<rect x="${bgX}" y="${bgY}" width="${bgW}" height="${bgH}" rx="6" fill="${bgFill}" />`;
+      logoSVG += `<rect x="${logoRect.clearedX}" y="${logoRect.clearedY}" width="${logoRect.clearedW}" height="${logoRect.clearedH}" rx="${cornerRadius}" fill="${bgFill}" />`;
     }
 
-    logoSVG += `<image href="${options.logoUrl}" x="${logoX}" y="${logoY}" width="${logoPx}" height="${logoPx}" preserveAspectRatio="xMidYMid meet" />`;
+    const safeHref = escapeXml(options.logoUrl);
+    logoSVG += `<image href="${safeHref}" x="${logoRect.logoX}" y="${logoRect.logoY}" width="${logoRect.logoW}" height="${logoRect.logoH}" preserveAspectRatio="xMidYMid meet" />`;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sizePx} ${sizePx}" width="${sizePx}" height="${sizePx}">

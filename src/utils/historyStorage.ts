@@ -53,9 +53,23 @@ export function saveToHistory(item: Omit<HistoryItem, 'id' | 'createdAt'> & { id
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(purged));
           return purged;
-        } catch (retryErr) {
-          console.error('Retry after purging 5 items failed:', retryErr);
-          return current;
+        } catch {
+          console.warn('Retry after purging 5 items failed. Stripping logoUrl and saving...');
+          // Strip logoUrl if quota is still exceeded
+          const itemWithoutLogo: HistoryItem = {
+            ...newItem,
+            designOptions: newItem.designOptions
+              ? { ...newItem.designOptions, logoUrl: undefined }
+              : undefined,
+          };
+          const updatedWithoutLogo = [itemWithoutLogo, ...filtered].slice(0, Math.max(1, current.length - 5));
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedWithoutLogo));
+            return updatedWithoutLogo;
+          } catch (finalErr) {
+            console.error('Final attempt to save history failed:', finalErr);
+            return current;
+          }
         }
       } else {
         console.error('Failed to save item to history:', err);
